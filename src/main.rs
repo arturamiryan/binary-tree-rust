@@ -1,4 +1,5 @@
 use binary_tree::*;
+use rand::prelude::*;
 
 fn main() {
     let mut btree = Tree::new();
@@ -22,9 +23,8 @@ fn main() {
     btree.add(9);
     println!("{}", btree);
     btree.remove(15);
-    for _i in 0..10000000 {
-        btree.add(11);
-        btree.remove(11);
+    for _i in 0..1_000_000 {
+        let mut rng = rand::thread_rng();
+        btree.add(rng.gen_range(0..10000));
     }
-    println!("{}", btree);
 }
