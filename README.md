@@ -2,7 +2,7 @@
 I forbid you to use it. This is unusable, unreadable, wrong-implemented bullshit.
 I warned you.
 
-# Implemented
+## Implemented
 - Adding to tree
 - Removing from tree
 - Cool looking (for small trees) Display trait
@@ -12,7 +12,7 @@ I warned you.
   - is_empty
   - Depth of the tree
 
-# Funny performance
+## Funny performance
 Adding 1.000.000 random integers in range from 0 to 10.000 requires:
 real	 0m0.970s
 user   0m0.871s
