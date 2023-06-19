@@ -6,8 +6,8 @@ pub struct Tree {
     root: Link,
 }
 
-#[derive(Debug, Clone)]
-struct Node {
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Node {
     value: i32,
     left: Link,
     right: Link,
@@ -20,13 +20,24 @@ impl Tree {
         Tree { root: None }
     }
 
-    pub fn max(&self) -> i32 {
+    pub fn max(&self) -> Option<i32> {
         match &self.root {
-            None => {
-                eprintln!("Tree is empty!");
-                return -1;
-            }
-            Some(node) => Node::max(*node.to_owned()),
+            None => None,
+            Some(node) => Some(Node::max(*node.to_owned())),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match &self.root {
+            None => true,
+            Some(_node) => false,
+        }
+    }
+
+    pub fn find(&self, value: i32) -> Option<Node> {
+        match &self.root {
+            None => None,
+            Some(node) => Node::find(&*node, value),
         }
     }
 
@@ -42,6 +53,16 @@ impl Tree {
             }
             Some(mut node) => {
                 node.add_to(value);
+                self.root = Some(node);
+            }
+        }
+    }
+
+    pub fn remove(&mut self, value: i32) {
+        match self.root.take() {
+            None => (),
+            Some(mut node) => {
+                node.remove(value);
                 self.root = Some(node);
             }
         }
@@ -63,24 +84,30 @@ impl Default for Tree {
 
 impl fmt::Display for Tree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_empty() {
+            eprintln!("Error: tree is empty");
+            return Err(fmt::Error);
+        }
         let btree_depth = self.depth() as usize;
         let mut btree_vec: Vec<Vec<u8>> = Vec::with_capacity(btree_depth);
-        let max_digits = (self.max().checked_ilog10().unwrap_or(0) + 1) as usize;
+        let max_digits = (self.max().unwrap().checked_ilog10().unwrap_or(0) + 2) as usize;
         let len_of_layer = vec![32; 2_usize.pow(btree_depth as u32) * max_digits];
         for _i in 0..btree_depth {
             btree_vec.push(len_of_layer.clone());
         }
         match &self.root {
-            None => eprintln!("Empty tree"),
+            None => {
+                return Err(fmt::Error);
+            }
             Some(node) => {
                 Node::print(*node.to_owned(), &mut btree_vec, 0, btree_depth, 1);
             }
         }
 
         for str in btree_vec {
-            write!(f, "{}\n", str::from_utf8(&str).unwrap())?;
+            writeln!(f, "{}", str::from_utf8(&str).unwrap())?;
         }
-        write!(f, "")
+        Ok(())
     }
 }
 
@@ -135,6 +162,101 @@ impl Node {
         }
     }
 
+    fn find(node: &Node, value: i32) -> Option<Node> {
+        if node.value == value {
+            Some(node.to_owned())
+        } else if node.value < value {
+            match &node.right {
+                None => None,
+                Some(node) => Node::find(&*node, value),
+            }
+        } else {
+            match &node.left {
+                None => None,
+                Some(node) => Node::find(&*node, value),
+            }
+        }
+    }
+
+    fn get_min(node: &Node) -> Node {
+        match &node.left {
+            None => node.to_owned(),
+            Some(nnode) => Node::get_min(&nnode),
+        }
+    }
+
+    fn remove(&mut self, value: i32) -> bool {
+        if value > self.value {
+            match self.right.take() {
+                None => return false,
+                Some(rnode) => {
+                    self.right = Some(rnode);
+                    let result = self.right.as_mut().unwrap().remove(value);
+                    if result {
+                        if self.right.as_ref().unwrap().left == None
+                            && self.right.as_ref().unwrap().right == None
+                        {
+                            self.right = None;
+                        } else if self.right.as_ref().unwrap().left == None {
+                            self.right = self.right.to_owned().unwrap().right;
+                        } else if self.right.as_ref().unwrap().right == None {
+                            self.right = self.right.to_owned().unwrap().left;
+                        } else {
+                            if self.right.as_ref().unwrap().right.as_ref().unwrap().left == None {
+                                self.right.as_mut().unwrap().value =
+                                    self.right.to_owned().unwrap().right.unwrap().value;
+                                self.right.as_mut().unwrap().right =
+                                    self.right.to_owned().unwrap().right.unwrap().right;
+                            } else {
+                                let min = Node::get_min(
+                                    self.right.as_mut().unwrap().right.as_mut().unwrap(),
+                                );
+                                self.right.as_mut().unwrap().remove(min.value);
+                                self.right.as_mut().unwrap().value = min.value;
+                            }
+                        }
+                    }
+                    false
+                }
+            }
+        } else if value < self.value {
+            match self.left.take() {
+                None => return false,
+                Some(lnode) => {
+                    self.left = Some(lnode);
+                    let result = self.left.as_mut().unwrap().remove(value);
+                    if result {
+                        if self.left.as_ref().unwrap().left == None
+                            && self.left.as_ref().unwrap().right == None
+                        {
+                            self.left = None;
+                        } else if self.left.as_ref().unwrap().left == None {
+                            self.left = self.left.to_owned().unwrap().right;
+                        } else if self.left.as_ref().unwrap().right == None {
+                            self.left = self.left.to_owned().unwrap().left;
+                        } else {
+                            if self.left.as_ref().unwrap().right.as_ref().unwrap().left == None {
+                                self.left.as_mut().unwrap().value =
+                                    self.left.to_owned().unwrap().right.unwrap().value;
+                                self.left.as_mut().unwrap().right =
+                                    self.left.to_owned().unwrap().right.unwrap().right;
+                            } else {
+                                let min = Node::get_min(
+                                    self.left.as_mut().unwrap().right.as_mut().unwrap(),
+                                );
+                                self.left.as_mut().unwrap().remove(min.value);
+                                self.left.as_mut().unwrap().value = min.value;
+                            }
+                        }
+                    }
+                    false
+                }
+            }
+        } else {
+            true
+        }
+    }
+
     fn add_to(&mut self, value: i32) {
         if value < self.value {
             match self.left.take() {
@@ -151,7 +273,7 @@ impl Node {
                     self.left.as_mut().unwrap().add_to(value);
                 }
             }
-        } else {
+        } else if value > self.value {
             match self.right.take() {
                 None => {
                     let new_node = Box::new(Node {
